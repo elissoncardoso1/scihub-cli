@@ -3,7 +3,9 @@ Sci-Hub source implementation.
 """
 
 import time
+from urllib.parse import urlparse
 
+from ..config.mirrors import MirrorConfig
 from ..core.doi_processor import DOIProcessor
 from ..core.downloader import FileDownloader
 from ..core.mirror_manager import MirrorManager
@@ -33,14 +35,13 @@ class SciHubSource(PaperSource):
         "10.1177/",
         "10.2501/",
     )
-    _FAST_FAIL_RESCUE_MIRROR_ORDER_HINTS = (
-        "sci-hub.vg",
-        "sci-hub.mk",
-        "sci-hub.ren",
-        "sci-hub.ee",
-    )
     _BLOCKED_COOLDOWN_SECONDS = 600.0
     _FAST_FAIL_BLOCKED_COOLDOWN_SECONDS = 120.0
+
+    @staticmethod
+    def _rescue_mirror_order_hints() -> tuple[str, ...]:
+        """Fast-fail rescue preference, taken from the shipped mirror list."""
+        return tuple(urlparse(url).netloc for url in MirrorConfig.get_all_mirrors())
 
     def __init__(
         self,
@@ -63,6 +64,13 @@ class SciHubSource(PaperSource):
         self.doi_processor = doi_processor
         self.downloader = downloader
         self._blocked_until = 0.0
+
+    def _get_session(self):
+        """Access the underlying requests.Session from the downloader's BasicSession."""
+        bs = getattr(self.downloader, "session", None)
+        if bs is not None and hasattr(bs, "_get_session"):
+            return bs._get_session()
+        return None
 
     @property
     def name(self) -> str:
@@ -123,9 +131,7 @@ class SciHubSource(PaperSource):
                 if mirror not in mirrors:
                     mirrors.append(mirror)
             if fast_fail_rescue:
-                hints = {
-                    hint: idx for idx, hint in enumerate(self._FAST_FAIL_RESCUE_MIRROR_ORDER_HINTS)
-                }
+                hints = {hint: idx for idx, hint in enumerate(self._rescue_mirror_order_hints())}
 
                 def _mirror_rank(url: str) -> tuple[int, str]:
                     lowered = (url or "").lower()
@@ -217,8 +223,47 @@ class SciHubSource(PaperSource):
                 logger.warning(f"[Sci-Hub] Failed to access page: {status_code}")
                 return None, False, False
         if html_content and self.parser._looks_like_scihub_block_page(html_content):
-            logger.warning(f"[Sci-Hub] Detected blocked mirror page for {mirror}")
-            return None, True, True
+            # New-generation mirrors serve the article page for the raw slash
+            # DOI; the legacy "@" form returns a block page.  Retry with the
+            # raw DOI before declaring the mirror blocked.
+            if doi.startswith("10.") and formatted_doi != doi:
+                fallback_url = f"{mirror}/{doi}"
+                logger.debug(f"[Sci-Hub] Block page for formatted DOI, trying raw: {fallback_url}")
+                html_content, status_code = self.downloader.get_page_content(
+                    fallback_url,
+                    timeout_seconds=page_timeout,
+                    force_challenge_bypass=allow_challenge_bypass,
+                )
+            if (
+                not html_content
+                or status_code != 200
+                or (self.parser._looks_like_scihub_block_page(html_content))
+            ):
+                logger.warning(f"[Sci-Hub] Detected blocked mirror page for {mirror}")
+                return None, True, True
+
+        # Sci-Hub's human verification is an ALTCHA proof-of-work: solve it
+        # server-side with the same session and retry the article page once.
+        session = self._get_session()
+        if session is not None:
+            from ..core.altcha_solver import AltchaSolver, is_altcha_challenge_html
+
+            if is_altcha_challenge_html(html_content or ""):
+                logger.info(f"[Sci-Hub] ALTCHA challenge detected for {doi}; solving")
+                solver = AltchaSolver(session, timeout=page_timeout or 30.0)
+                if solver.verify(scihub_url):
+                    html_content, status_code = self.downloader.get_page_content(
+                        scihub_url,
+                        timeout_seconds=page_timeout,
+                        force_challenge_bypass=allow_challenge_bypass,
+                    )
+                if (
+                    not html_content
+                    or status_code != 200
+                    or self.parser._looks_like_scihub_block_page(html_content)
+                ):
+                    logger.warning(f"[Sci-Hub] ALTCHA verification did not clear {doi}")
+                    return None, True, False
 
         download_url = self.parser.extract_download_url(html_content, mirror)
         if (

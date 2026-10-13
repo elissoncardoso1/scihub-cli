@@ -4,8 +4,51 @@ HTML challenge and block-page detection utilities.
 Pure functions with no external state dependencies.
 """
 
+import hashlib
+import os
 import re
 from urllib.parse import parse_qs, urlparse, urlunparse
+
+# Generic "Sci-Hub tokenomics for Open Science" brochure that some mirrors
+# serve in place of every article they do not have.  It is a fixed document,
+# so the digest identifies it; the size pre-filter keeps the check cheap.
+_PLACEHOLDER_PDF_SIZE = 608728
+_PLACEHOLDER_PDF_SHA256 = "9e422f86b9b632d2ebd4574747d12344e18c01abaa4f5ee2a9de185a6faa0d53"
+_PLACEHOLDER_TEXT_MARKERS = (
+    "tokenomics for open science",
+    "sci-net tokenomics",
+    "roadmap towards open science",
+)
+
+
+def is_placeholder_pdf(file_path: str) -> bool:
+    """True when the downloaded PDF is the Sci-Hub placeholder brochure.
+
+    Mirrors answer misses with this document instead of a 404, so a header-only
+    (%PDF-) check records it as a successful download.  Detect it by size plus
+    SHA-256, and fall back to a first-page text scan for future variants.
+    """
+    try:
+        size = os.path.getsize(file_path)
+    except OSError:
+        return False
+
+    if size == _PLACEHOLDER_PDF_SIZE:
+        with open(file_path, "rb") as fh:
+            if hashlib.sha256(fh.read()).hexdigest() == _PLACEHOLDER_PDF_SHA256:
+                return True
+
+    # Unknown-size variant: scan the first page only, capped to small files.
+    if size > 2_000_000:
+        return False
+    try:
+        import pymupdf  # lazy: only needed when the cheap path misses
+
+        with pymupdf.open(file_path) as doc:
+            head = doc[0].get_text()[:2000].lower()
+        return any(marker in head for marker in _PLACEHOLDER_TEXT_MARKERS)
+    except Exception:
+        return False
 
 
 def is_hard_challenge_block_html(html: str) -> bool:

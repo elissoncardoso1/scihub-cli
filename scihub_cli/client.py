@@ -91,6 +91,7 @@ class SciHubClient:
         trace_html_max_chars: int = 2_000_000,
         enable_core: bool = False,
         fast_fail: bool = False,
+        only_scihub: bool = False,
         download_deadline_seconds: float | None = None,
         academic_only: bool = False,
     ):
@@ -134,7 +135,6 @@ class SciHubClient:
 
         # Multi-source support
         if source_manager is None:
-            # Initialize paper sources
             sources = [
                 SciHubSource(
                     mirror_manager=self.mirror_manager,
@@ -144,55 +144,59 @@ class SciHubClient:
                 )
             ]
 
-            # Direct URL sources: enable direct PDF and PMC handling for URL inputs
-            sources.insert(0, HTMLLandingSource(downloader=self.downloader))
-            sources.insert(0, PMCSource(downloader=self.downloader))
-            sources.insert(0, DirectPDFSource())
+            # Only the Sci-Hub source is kept when the caller restricts routing.
+            if only_scihub:
+                logger.info("only_scihub: skipping every open-access source")
+            else:
+                # Direct URL sources: enable direct PDF and PMC handling for URL inputs
+                sources.insert(0, HTMLLandingSource(downloader=self.downloader))
+                sources.insert(0, PMCSource(downloader=self.downloader))
+                sources.insert(0, DirectPDFSource())
 
-            # arXiv: Free and open, always enabled (high priority for preprints)
-            sources.insert(0, ArxivSource(timeout=self.timeout))
+                # arXiv: Free and open, always enabled (high priority for preprints)
+                sources.insert(0, ArxivSource(timeout=self.timeout))
 
-            # OSTI: DOE technical report DOIs (10.2172)
-            sources.insert(0, OSTISource())
+                # OSTI: DOE technical report DOIs (10.2172)
+                sources.insert(0, OSTISource())
 
-            # OpenAlex: OA metadata + PDF links, no email required
-            sources.insert(
-                0,
-                OpenAlexSource(
-                    timeout=self.timeout,
-                    email=self.email,
-                    api_key=settings.openalex_api_key,
-                    fast_fail=self.fast_fail,
-                ),
-            )
-
-            # Europe PMC: OA discovery for biomedical literature (no email required)
-            sources.insert(
-                0,
-                EuropePMCSource(timeout=self.timeout, fast_fail=self.fast_fail),
-            )
-            sources.insert(
-                0,
-                EuropePMCOASource(timeout=self.timeout, fast_fail=self.fast_fail),
-            )
-
-            # Only enable Unpaywall when email is provided
-            if self.email:
+                # OpenAlex: OA metadata + PDF links, no email required
                 sources.insert(
                     0,
-                    UnpaywallSource(
-                        email=self.email, timeout=self.timeout, fast_fail=self.fast_fail
+                    OpenAlexSource(
+                        timeout=self.timeout,
+                        email=self.email,
+                        api_key=settings.openalex_api_key,
+                        fast_fail=self.fast_fail,
                     ),
                 )
 
-            # CORE does not require email, keep as OA fallback (unless explicitly disabled)
-            if self.enable_core:
-                sources.append(CORESource(api_key=settings.core_api_key, timeout=self.timeout))
-            else:
-                logger.info("CORE source disabled by configuration")
+                # Europe PMC: OA discovery for biomedical literature (no email required)
+                sources.insert(
+                    0,
+                    EuropePMCSource(timeout=self.timeout, fast_fail=self.fast_fail),
+                )
+                sources.insert(
+                    0,
+                    EuropePMCOASource(timeout=self.timeout, fast_fail=self.fast_fail),
+                )
 
-            # OpenAIRE is a sequential fallback after faster OA sources.
-            sources.append(OpenAireSource(timeout=self.timeout, fast_fail=self.fast_fail))
+                # Only enable Unpaywall when email is provided
+                if self.email:
+                    sources.insert(
+                        0,
+                        UnpaywallSource(
+                            email=self.email, timeout=self.timeout, fast_fail=self.fast_fail
+                        ),
+                    )
+
+                # CORE does not require email, keep as OA fallback (unless explicitly disabled)
+                if self.enable_core:
+                    sources.append(CORESource(api_key=settings.core_api_key, timeout=self.timeout))
+                else:
+                    logger.info("CORE source disabled by configuration")
+
+                # OpenAIRE is a sequential fallback after faster OA sources.
+                sources.append(OpenAireSource(timeout=self.timeout, fast_fail=self.fast_fail))
 
             self.source_manager = SourceManager(
                 sources=sources,

@@ -11,7 +11,7 @@ dist/
 *.so
 
 # 项目特定目录
-downloads/
+downloads*/
 logs/
 memory-bank/
 benchmarks/
@@ -42,6 +42,12 @@ sci-hub-page.html
 .pytest_cache/
 *.log
 prd.md
+
+# Local batch inputs/outputs from ad-hoc runs
+artigos_sessao/
+papers_*.txt
+baixar_*.py
+*.part
 
 # Local docs artifacts
 docs/_local/

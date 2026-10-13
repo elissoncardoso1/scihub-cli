@@ -12,7 +12,7 @@ A command-line tool for batch downloading academic papers with multi-source supp
   - **OpenAIRE**: Repository-link fallback after faster OA sources (no email required)
   - **arXiv**: Prioritized for preprints (free, no API key needed)
   - **Unpaywall**: For open access papers (requires email)
-  - **Sci-Hub**: Optional fallback for older papers when a user-supplied mirror is available
+  - **Sci-Hub**: Optional fallback for older papers, using the curated mirror list (or one supplied with `--mirror`)
   - **CORE**: Additional OA fallback (disabled by default; opt in with `--enable-core`)
 - **Smart Year-Based Routing**:
   - Papers before 2021: OA sources first, optional Sci-Hub fallback
@@ -31,6 +31,17 @@ A command-line tool for batch downloading academic papers with multi-source supp
 - **Metadata-based Filenames**: Automatically names files as `[YYYY] - [Title].pdf` for easy organization
 
 ## Recent Updates
+
+### v0.6.0
+
+- Added a curated Sci-Hub mirror list that is validated with an article-level check before use;
+  mirrors that only answer HTTP 200 on a home page are rejected
+- Clear Sci-Hub's ALTCHA proof-of-work challenge automatically (the widget's own HMAC-SHA256
+  computation, solved server-side with the session cookie jar) so article pages load without a browser
+- Rejected the generic "Sci-Hub tokenomics" placeholder PDF that some mirrors return instead of a 404,
+  which previously produced batches of files that were not the requested article
+- Added `--only-scihub` to route a batch through Sci-Hub only, skipping every open-access source
+- Added unit tests for challenge detection, proof-of-work solving, and placeholder rejection
 
 ### v0.5.4
 
@@ -286,8 +297,8 @@ The email is saved to `~/.scihub-cli/config.json` and sent only to Unpaywall for
 
 ```
 usage: scihub-cli [-h] [-o OUTPUT] [-m MIRROR] [-t TIMEOUT] [-r RETRIES] [-p PARALLEL]
-                  [--enable-core] [--fast-fail] [--no-fast-fail] [--academic-only]
-                  [--no-academic-only]
+                  [--enable-core] [--only-scihub] [--fast-fail] [--no-fast-fail]
+                  [--academic-only] [--no-academic-only]
                   [--email EMAIL] [-v] [--version] input_file
 
 Download academic papers from multiple open-access sources, with optional Sci-Hub fallback.
@@ -301,6 +312,7 @@ options:
                         Output directory for downloaded PDFs (default: ./downloads)
   -m MIRROR, --mirror MIRROR
                         Specific Sci-Hub mirror to use
+  --only-scihub         Try Sci-Hub only (skip OpenAlex/Unpaywall/Europe PMC/arXiv/OpenAIRE probes)
   -t TIMEOUT, --timeout TIMEOUT
                         Request timeout in seconds (default: 15)
   -r RETRIES, --retries RETRIES
@@ -347,11 +359,14 @@ The directory is created with mode `0700` and the file with mode `0600` on
 POSIX systems. Downloads are capped at 100 MiB by default; set the positive
 `SCIHUB_MAX_FILE_SIZE` environment variable (bytes) to use a different cap.
 
-Sci-Hub mirrors are intentionally not bundled: mirror domains change often,
-and a home page returning HTTP 200 does not prove that it can serve a paper.
-Use `--mirror https://...` to supply one. The CLI checks an article-specific
-DOI page and requires a concrete PDF/download link before using it. Set
-`SCIHUB_MIRROR_PROBE_DOI` to choose a different probe DOI when needed.
+Sci-Hub mirrors ship as a curated list (`scihub_cli/config/mirrors.py`). Home
+pages returning HTTP 200 prove nothing, so every mirror is validated against an
+article-level check that requires a concrete PDF link before it is used, and the
+check also clears the mirror's ALTCHA proof-of-work page. If a mirror answers a
+miss with the generic "Sci-Hub tokenomics" placeholder PDF, the file is rejected
+and the next source is tried. Use `--mirror https://...` to supply one extra
+mirror for a run, `--only-scihub` to skip the open-access sources entirely, and
+`SCIHUB_MIRROR_PROBE_DOI` to choose a different probe DOI.
 
 ### Examples
 
@@ -400,9 +415,9 @@ The tool uses intelligent multi-source routing:
 
 1. **Year Detection**: Queries Crossref API to determine publication year
 2. **Smart Routing**:
-   - Papers before 2021 → Try fast OA sources, then OpenAIRE, then an optional Sci-Hub mirror
+   - Papers before 2021 → Try fast OA sources, then OpenAIRE, then the curated Sci-Hub mirrors
    - Papers 2021+ → Try fast OA sources, then OpenAIRE (skip Sci-Hub)
-   - Unknown year → Try fast OA sources, then OpenAIRE, then an optional Sci-Hub mirror
+   - Unknown year → Try fast OA sources, then OpenAIRE, then the curated Sci-Hub mirrors
 3. **Download Process**:
    - Get PDF URL from selected source
    - Download with progress tracking
@@ -425,15 +440,15 @@ The tool automatically adapts HTTP headers for different publishers:
 
 There is no maintained success-rate benchmark for this project. Results vary
 with the identifier, publication date, OA availability, provider rate limits,
-network conditions, and whether a working optional mirror or Unpaywall email
-is configured. The project does not promise a fixed percentage.
+network conditions, and whether the curated Sci-Hub mirrors or an Unpaywall email
+work for the identifier. The project does not promise a fixed percentage.
 
 ## Limitations
 
 - Not all papers are available through Sci-Hub or Unpaywall
 - Unpaywall only covers open access papers
 - Some publishers may block automated downloads
-- Sci-Hub mirrors change frequently; no default mirror is currently shipped
+- Sci-Hub mirrors change frequently; the bundled list is curated and re-validated per run
 - `r.jina.ai` fallback requests omit query strings, so pages that require a query parameter may not recover
 - A 100 MiB per-file cap prevents accidental/unbounded downloads; large papers require `SCIHUB_MAX_FILE_SIZE`
 

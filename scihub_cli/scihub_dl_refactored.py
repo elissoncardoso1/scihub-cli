@@ -170,6 +170,13 @@ def main():
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "--only-scihub",
+        dest="only_scihub",
+        action="store_true",
+        default=False,
+        help="Try Sci-Hub only (skip OpenAlex/Unpaywall/Europe PMC/arXiv/OpenAIRE probes)",
+    )
+    parser.add_argument(
         "--fast-fail",
         dest="fast_fail",
         action="store_true",
@@ -245,6 +252,7 @@ def main():
         trace_html_max_chars=args.trace_html_max_chars,
         enable_core=args.enable_core and not args.disable_core,
         fast_fail=args.fast_fail,
+        only_scihub=args.only_scihub,
         download_deadline_seconds=args.download_deadline,
         academic_only=args.academic_only,
     )

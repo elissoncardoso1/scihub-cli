@@ -231,7 +231,16 @@ class MirrorManager:
         healthy because it cannot verify article availability.
         """
         del allow_403  # A protected home/article page is not a verified mirror.
-        article_url = self._build_healthcheck_url(mirror)
+        # New-generation mirrors (verified 2026-10-02) serve the article page
+        # for the raw slash DOI; the legacy "@" form returns a block page.
+        for doi_path in (self.probe_doi, DOIProcessor.format_doi_for_url(self.probe_doi)):
+            article_url = self._build_healthcheck_url(mirror, doi_path)
+            if self._probe_article_url(mirror, article_url):
+                return True
+        return False
+
+    def _probe_article_url(self, mirror: str, article_url: str) -> bool:
+        """Fetch one health-check URL and decide whether the mirror works."""
         try:
             response = requests.get(
                 article_url,
@@ -252,6 +261,24 @@ class MirrorManager:
                 return True
 
             html = page.decode("utf-8", errors="replace")
+            # A mirror that presents the ALTCHA human-verification page is alive:
+            # solve the proof-of-work with a cookie-bearing session, refetch, and
+            # evaluate the resulting article page.
+            from .altcha_solver import AltchaSolver, is_altcha_challenge_html
+
+            if is_altcha_challenge_html(html):
+                session = requests.Session()
+                session.trust_env = False
+                if AltchaSolver(session, timeout=MIRROR_TEST_TIMEOUT).verify(article_url):
+                    retry = session.get(
+                        article_url,
+                        timeout=MIRROR_TEST_TIMEOUT,
+                        headers=self._headers,
+                        proxies={"http": None, "https": None},
+                    )
+                    if retry.status_code == 200:
+                        html = retry.text
+                        logger.info(f"ALTCHA cleared for mirror health check: {mirror}")
             if ContentParser._looks_like_scihub_block_page(html):
                 logger.warning(f"BLOCKED: {mirror} returned a block page for {self.probe_doi}")
                 return False
@@ -268,10 +295,11 @@ class MirrorManager:
             logger.debug(f"FAIL: {mirror} returned an invalid health-check response: {e}")
             return False
 
-    def _build_healthcheck_url(self, mirror: str) -> str:
+    def _build_healthcheck_url(self, mirror: str, doi_path: str | None = None) -> str:
         """Build the article URL used by the mirror health check."""
         base = (mirror or "").strip().rstrip("/")
-        return f"{base}/{DOIProcessor.format_doi_for_url(self.probe_doi)}"
+        path = doi_path if doi_path is not None else DOIProcessor.format_doi_for_url(self.probe_doi)
+        return f"{base}/{path}"
 
     @staticmethod
     def _response_bytes(response: requests.Response) -> bytes:

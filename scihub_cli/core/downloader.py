@@ -39,6 +39,7 @@ from .challenge_detection import (
     is_auth_or_paywall_html,
     is_challenge_html,
     is_hard_challenge_block_html,
+    is_placeholder_pdf,
     is_scihub_host,
     looks_like_pdf_download_path,
     normalize_download_url,
@@ -987,6 +988,14 @@ class FileDownloader:
                         raise PermanentError(
                             "Downloaded file is not a valid PDF (missing PDF header)"
                         )
+
+                # Mirrors answer misses with a placeholder brochure, not a 404;
+                # reject it so the router tries the next source.
+                if is_placeholder_pdf(temp_path):
+                    os.unlink(temp_path)
+                    raise PermanentError(
+                        "Downloaded file is a Sci-Hub placeholder brochure, not the article"
+                    )
 
                 # If valid, move to final destination
                 _check_deadline_with_progress()

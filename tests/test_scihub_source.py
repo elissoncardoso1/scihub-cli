@@ -1,3 +1,4 @@
+from scihub_cli.config.mirrors import MirrorConfig
 from scihub_cli.core.doi_processor import DOIProcessor
 from scihub_cli.core.parser import ContentParser
 from scihub_cli.sources.scihub_source import SciHubSource
@@ -247,13 +248,42 @@ def test_scihub_source_fast_fail_rescue_doi_can_fallback_after_no_result_200():
     assert downloader.calls == [f"{mirrors[0]}/{formatted}", f"{mirrors[0]}/{doi}"]
 
 
+def test_scihub_source_retries_raw_doi_after_block_page_for_formatted_doi():
+    mirrors = ["https://m1.test"]
+    doi = "10.1234/abcd"
+    formatted = DOIProcessor.format_doi_for_url(doi)
+    block_html = "<html>Scientific Mutual Aid Community. You can request this article.</html>"
+    success_html = """
+    <html><body>
+      <iframe id="pdf" src="/downloads/10.1234/abcd.pdf"></iframe>
+    </body></html>
+    """
+    responses = {
+        f"{mirrors[0]}/{formatted}": (block_html, 200),
+        f"{mirrors[0]}/{doi}": (success_html, 200),
+    }
+
+    mirror_manager = _StubMirrorManager(mirrors)
+    downloader = _StubDownloader(responses)
+    source = SciHubSource(
+        mirror_manager=mirror_manager,
+        parser=ContentParser(),
+        doi_processor=DOIProcessor(),
+        downloader=downloader,
+    )
+
+    url = source.get_pdf_url(doi)
+    assert url == "https://m1.test/downloads/10.1234/abcd.pdf?download=true"
+    assert downloader.calls == [f"{mirrors[0]}/{formatted}", f"{mirrors[0]}/{doi}"]
+    assert mirror_manager.failed == []
+
+
 def test_scihub_source_fast_fail_rescue_reorders_tail_mirrors_by_hint():
-    mirrors = [
-        "https://sci-hub.ren",
-        "https://sci-hub.vg",
-        "https://sci-hub.mk",
-        "https://sci-hub.ee",
-    ]
+    shipped = MirrorConfig.get_all_mirrors()  # preference order
+    # Preferred mirror is tried first; the tail follows the shipped preference.
+    preferred, tail_first, tail_last = shipped[2], shipped[0], shipped[1]
+    mirrors = [preferred, tail_last, tail_first]
+    tried = [preferred, tail_first, tail_last]
     doi = "10.1080/09593969.2015.1017773"
     formatted = DOIProcessor.format_doi_for_url(doi)
     success_html = """
@@ -262,11 +292,11 @@ def test_scihub_source_fast_fail_rescue_reorders_tail_mirrors_by_hint():
     </body></html>
     """
     responses = {
-        f"{mirrors[0]}/{formatted}": ("<html>no pdf</html>", 200),
-        f"{mirrors[0]}/{doi}": ("<html>still no pdf</html>", 200),
-        f"{mirrors[1]}/{formatted}": ("<html>no pdf</html>", 200),
-        f"{mirrors[1]}/{doi}": ("<html>still no pdf</html>", 200),
-        f"{mirrors[2]}/{formatted}": (success_html, 200),
+        f"{tried[0]}/{formatted}": ("<html>no pdf</html>", 200),
+        f"{tried[0]}/{doi}": ("<html>still no pdf</html>", 200),
+        f"{tried[1]}/{formatted}": ("<html>no pdf</html>", 200),
+        f"{tried[1]}/{doi}": ("<html>still no pdf</html>", 200),
+        f"{tried[2]}/{formatted}": (success_html, 200),
     }
 
     mirror_manager = _StubMirrorManager(mirrors)
@@ -279,11 +309,11 @@ def test_scihub_source_fast_fail_rescue_reorders_tail_mirrors_by_hint():
     )
 
     url = source.get_pdf_url(doi)
-    assert url == "https://sci-hub.mk/downloads/10.1080/09593969.2015.1017773.pdf?download=true"
+    assert url == f"{tried[2]}/downloads/10.1080/09593969.2015.1017773.pdf?download=true"
     assert downloader.calls == [
-        f"{mirrors[0]}/{formatted}",
-        f"{mirrors[0]}/{doi}",
-        f"{mirrors[1]}/{formatted}",
-        f"{mirrors[1]}/{doi}",
-        f"{mirrors[2]}/{formatted}",
+        f"{tried[0]}/{formatted}",
+        f"{tried[0]}/{doi}",
+        f"{tried[1]}/{formatted}",
+        f"{tried[1]}/{doi}",
+        f"{tried[2]}/{formatted}",
     ]
