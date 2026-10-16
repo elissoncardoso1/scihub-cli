@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scihub-cli"
-version = "0.6.0"
+version = "0.7.0"
 description = "Multi-source academic paper downloader (Sci-Hub, Unpaywall, CORE)"
 authors = [
     {name = "Sci-Hub CLI", email = "example@example.com"},
@@ -30,8 +30,16 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+# MCP server: protocol package pinned to 1.x (2.x renamed FastMCP) + PDF verification
+mcp = ["mcp<2", "pymupdf>=0.24.0"]
+# Browser fallback: uses the SYSTEM Chrome; no playwright browser download needed
+browser = ["playwright>=1.40.0"]
+
 [project.scripts]
 scihub-cli = "scihub_cli.scihub_dl_refactored:main"
+scihub-mcp = "scihub_cli.mcp_server:main"
+scihub-fallback = "scihub_cli.fallback_navegador:main"
 
 [tool.setuptools]
 packages = [

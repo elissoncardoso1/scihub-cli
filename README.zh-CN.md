@@ -32,6 +32,14 @@
 
 ## 最近更新
 
+### v0.7.0
+
+- 新增内置 MCP 服务器（`scihub-mcp`），把批量下载管线暴露为 4 个工具调用
+  （`extrair_dois_csv`、`baixar_batch`、`fallback_navegador`、`verificar`），详见「与 AI Agent 配合使用」一节
+- 新增真实浏览器兜底（`scihub-fallback`）：用系统 Chrome 打开镜像/Sci-Net/出版社页面，
+  持久化配置文件应对挑战页，并在落盘前把文件绑定到所请求的 DOI
+- 新增 extras：`[mcp]`（MCP SDK + PyMuPDF）与 `[browser]`（playwright，使用系统 Chrome）
+
 ### v0.6.0
 
 - 内置经过维护的 Sci-Hub 镜像列表，并在使用前做论文级检查；仅首页返回 HTTP 200 的镜像会被拒绝
@@ -393,6 +401,39 @@ uvx scihub-cli papers.txt
 此工具仅供教育和研究目的使用。用户负责确保其使用符合适用的法律法规。
 
 ## 与 AI Agent 配合使用（MCP）
+
+本 fork 内置 MCP 服务器（`scihub-mcp`，需要 `[mcp]` extra），可直接把"CSV → 提取 DOI → 批量下载 → 浏览器兜底 → 校验"整条管线暴露成 4 个工具：
+
+```bash
+pip install "scihub-cli[mcp]"          # 协议 + 校验
+pip install "scihub-cli[mcp,browser]"  # 可选：真实浏览器兜底（用已装的系统 Chrome）
+scihub-mcp                             # stdio MCP 服务器
+```
+
+在任意 `mcpServers` 风格的宿主配置里注册（extras 只在本 fork 有，用 git 地址或本地安装，不要指到 PyPI）：
+
+```json
+{
+  "mcpServers": {
+    "scihub": {
+      "command": "uvx",
+      "args": [
+        "--from", "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git",
+        "scihub-mcp"
+      ]
+    }
+  }
+}
+```
+
+| 工具 | 用途 |
+| --- | --- |
+| `extrair_dois_csv` | 从 Scopus 风格的 CSV 导出提取 DOI |
+| `baixar_batch` | 运行批量下载（默认 `only_scihub`） |
+| `fallback_navegador` | CLI 找不到的 DOI 用真实浏览器重试（需要 `[browser]`） |
+| `verificar` | 把已下载 PDF 映射回 DOI（检查前两页 DOI 字样） |
+
+独立的 `scihub-fallback <list.txt> -o <dir>` 可在 MCP 宿主之外直接运行同样的浏览器兜底。
 
 [paper-download-mcp](https://github.com/Oxidane-bot/paper-download-mcp) 是一个独立的 MCP 服务，和本项目共用核心逻辑，并已发布到 PyPI。它可以作为 agent 调用的论文下载工具。先安装 `uv`（可用 `uvx --version` 验证），然后：
 

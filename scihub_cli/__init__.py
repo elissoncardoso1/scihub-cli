@@ -4,7 +4,7 @@ Sci-Hub CLI package.
 A command-line tool for batch downloading academic papers from Sci-Hub.
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 # Import main interfaces for easy access
 from .client import SciHubClient

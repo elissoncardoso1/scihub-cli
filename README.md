@@ -32,6 +32,17 @@ A command-line tool for batch downloading academic papers with multi-source supp
 
 ## Recent Updates
 
+### v0.7.0
+
+- Added an MCP server (`scihub-mcp`) exposing the batch pipeline as four tool calls
+  (`extrair_dois_csv`, `baixar_batch`, `fallback_navegador`, `verificar`) — see
+  [MCP Server](#mcp-server)
+- Added a real-browser fallback (`scihub-fallback`, module
+  `scihub_cli.fallback_navegador`): opens mirror/Sci-Net/publisher pages in the system
+  Chrome, solves challenge-gated pages with a persistent profile, and binds every file to
+  the requested DOI before saving it
+- New extras: `[mcp]` (MCP SDK + PyMuPDF) and `[browser]` (playwright; uses system Chrome)
+
 ### v0.6.0
 
 - Added a curated Sci-Hub mirror list that is validated with an article-level check before use;
@@ -155,6 +166,51 @@ scihub-cli skill install --target gemini-cli --force
 The Skill tells an agent how to prepare batch inputs, run the downloader, and verify results. It
 does not configure an MCP server. Cursor is not listed because its public customization format is
 Rules/Commands rather than a native user-level `SKILL.md` location.
+
+### MCP Server
+
+The package ships a [Model Context Protocol](https://modelcontextprotocol.io) server that
+exposes the whole batch pipeline — CSV → DOI extraction → download → browser fallback →
+verification — as four tool calls. Any MCP host (Claude Desktop, Hermes Agent, LibreChat,
+...) can drive it without shell access.
+
+```bash
+# Install with protocol + verification support
+pip install "scihub-cli[mcp]"
+scihub-mcp          # stdio MCP server
+
+# Optional: enable the real-browser fallback tool (uses your installed Chrome)
+pip install "scihub-cli[mcp,browser]"
+```
+
+Point an MCP host at it, e.g. Claude Desktop `claude_desktop_config.json` or any
+`mcpServers`-style config:
+
+```json
+{
+  "mcpServers": {
+    "scihub": {
+      "command": "uvx",
+      "args": [
+        "--from", "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git",
+        "scihub-mcp"
+      ]
+    }
+  }
+}
+```
+
+(Use `pip`/`uv tool install` from this fork instead of PyPI to get the extras.) Tools:
+
+| Tool | Purpose |
+| --- | --- |
+| `extrair_dois_csv` | Extract DOIs from a Scopus-style CSV export |
+| `baixar_batch` | Run the batch downloader (`only_scihub` by default) |
+| `fallback_navegador` | Real-browser retry for DOIs the CLI could not find (needs `[browser]`) |
+| `verificar` | Map downloaded PDFs back to DOIs (DOI check on the first 2 pages) |
+
+The standalone CLI (`scihub-fallback`) runs the same browser fallback outside MCP hosts:
+`scihub-fallback <list.txt> -o <dir>`.
 
 ### Global vs Temporary Usage
 

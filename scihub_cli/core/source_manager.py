@@ -119,6 +119,14 @@ class SourceManager:
                 exclude_sources,
             )
 
+        # Sci-Hub-only runs (e.g. --only-scihub): the router registers a single
+        # Sci-Hub source, so the year-based OA chain would filter it out and
+        # every 2021+ paper would fail without a single mirror attempt. Route
+        # everything the single source can handle straight to it.
+        if not is_url_input and set(self.sources) == {"Sci-Hub"}:
+            logger.info("[Router] Sci-Hub-only routing: single source chain")
+            return [self.sources["Sci-Hub"]]
+
         # Non-URL arXiv identifiers: OA chain is still appropriate.
         if "arXiv" in self.sources and self.sources["arXiv"].can_handle(doi):
             logger.info("[Router] Detected arXiv identifier, using arXiv -> OA sources -> Sci-Hub")
