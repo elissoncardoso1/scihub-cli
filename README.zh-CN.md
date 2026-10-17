@@ -29,8 +29,23 @@
 - PDF验证 (拒绝HTML文件)
 - 下载进度报告
 - **基于元数据的文件名**: 自动命名为 `[年份] - [标题].pdf` 便于整理
+- **MCP 服务器**: `scihub-mcp` 把批量下载管线暴露成 4 个工具，供任何 MCP 宿主调用
+  （Claude Desktop、Cursor、Codex、ChatGPT 等），支持 stdio 与 streamable-http —— 见
+  [`docs/mcp-server.md`](docs/mcp-server.md)
+- **真实浏览器兜底**: `scihub-fallback` 通过系统 Chrome 重试未收录/较新的 DOI，
+  用持久化配置文件应对挑战页
 
 ## 最近更新
+
+### v0.7.1
+
+- 新增 Streamable HTTP 传输（`--transport streamable-http` / `MCP_TRANSPORT`），让仅支持远程的宿主
+  （ChatGPT 开发者模式、Claude.ai 连接器）也能使用同一套工具；监听地址可通过 `--host/--port`
+  （或 `MCP_HOST`/`MCP_PORT`）配置
+- 针对严格的 JSON-Schema 宿主（OpenAI/Gemini）加固工具 schema：去掉 `verificar` 参数的 `anyOf`
+  联合类型，并增加禁止 schema 令牌的可移植性守卫测试
+- 修复 `--only-scihub` 路由：按年份路由此前会把 2021+ 的 DOI 丢掉 Sci-Hub 源，导致一次镜像都
+  没尝试就瞬间失败；单源运行现在直接路由到 Sci-Hub
 
 ### v0.7.0
 
@@ -544,4 +559,8 @@ SCIHUB_CLI_RUN_INTEGRATION=1 uv run pytest -q -m e2e
 
 ## 许可证
 
-本项目采用MIT许可证 - 详情请参阅LICENSE文件。 
+本项目采用MIT许可证 - 详情请参阅LICENSE文件。
+
+## 联系方式
+
+疑问、问题或建议：[pontobhv@proton.me](mailto:pontobhv@proton.me) 

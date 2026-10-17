@@ -29,8 +29,23 @@ A command-line tool for batch downloading academic papers with multi-source supp
 - PDF validation (rejects HTML files)
 - Progress reporting
 - **Metadata-based Filenames**: Automatically names files as `[YYYY] - [Title].pdf` for easy organization
+- **MCP Server**: `scihub-mcp` exposes the batch pipeline as four tool calls for any MCP host
+  (Claude Desktop, Cursor, Codex, ChatGPT, …) over stdio or streamable-http — see
+  [`docs/mcp-server.md`](docs/mcp-server.md)
+- **Real-Browser Fallback**: `scihub-fallback` retries unindexed/recent DOIs through the system
+  Chrome, solving challenge-gated pages with a persistent profile
 
 ## Recent Updates
+
+### v0.7.1
+
+- Added the Streamable HTTP transport (`--transport streamable-http` / `MCP_TRANSPORT`) so
+  remote-only hosts (ChatGPT developer mode, Claude.ai connectors) can use the same tools;
+  the bind is configurable via `--host/--port` (or `MCP_HOST`/`MCP_PORT`)
+- Hardened tool schemas for strict JSON-Schema hosts (OpenAI/Gemini): dropped the `anyOf` union
+  on the `verificar` parameter, and added a portability guard test for banned schema tokens
+- Fixed `--only-scihub` routing: the year-based router dropped the Sci-Hub source for 2021+ DOIs,
+  failing instantly without a single mirror attempt; single-source runs now route straight to it
 
 ### v0.7.0
 
@@ -627,4 +642,8 @@ report for the current result.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Contact
+
+Questions, issues, or suggestions: [pontobhv@proton.me](mailto:pontobhv@proton.me) 
