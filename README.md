@@ -249,6 +249,9 @@ claude mcp add scihub -- uvx --from "scihub-cli[mcp] @ git+https://github.com/el
 ChatGPT and Claude.ai accept only a **remote** server: run `scihub-mcp --transport streamable-http`
 behind a TLS proxy and give the host its HTTPS `/mcp` URL.
 
+Full documentation (tools reference, transports, per-host config, contact):
+[`docs/mcp-server.md`](docs/mcp-server.md).
+
 ### Global vs Temporary Usage
 
 - **Global Installation**: Use `pip install scihub-cli` or `uv tool install scihub-cli`

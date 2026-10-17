@@ -466,6 +466,8 @@ claude mcp add scihub -- uvx --from "scihub-cli[mcp] @ git+https://github.com/el
 
 ChatGPT 与 Claude.ai 只接受**远程**服务器：运行 `scihub-mcp --transport streamable-http`，前面加 TLS 代理，然后把 HTTPS 的 `/mcp` URL 交给宿主。
 
+完整文档（工具参考、传输方式、按宿主配置、联系方式）：[`docs/mcp-server.md`](docs/mcp-server.md)。
+
 [paper-download-mcp](https://github.com/Oxidane-bot/paper-download-mcp) 是一个独立的 MCP 服务，和本项目共用核心逻辑，并已发布到 PyPI。它可以作为 agent 调用的论文下载工具。先安装 `uv`（可用 `uvx --version` 验证），然后：
 
 ### Claude Code
