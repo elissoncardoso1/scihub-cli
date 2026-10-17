@@ -212,6 +212,42 @@ Point an MCP host at it, e.g. Claude Desktop `claude_desktop_config.json` or any
 The standalone CLI (`scihub-fallback`) runs the same browser fallback outside MCP hosts:
 `scihub-fallback <list.txt> -o <dir>`.
 
+**Two transports, same tools.** `scihub-mcp` speaks `stdio` by default (the transport every
+code/desktop host uses). Add `--transport streamable-http` (or `MCP_TRANSPORT=streamable-http`)
+to serve the same server over HTTP for remote-only hosts — ChatGPT (developer mode) and the
+Claude.ai connectors. Default bind is `127.0.0.1:8000` at path `/mcp`; put a TLS reverse proxy
+in front for anything public.
+
+**Per-host config** (same server, different file format — check each host's current docs):
+
+```jsonc
+// Claude Desktop: claude_desktop_config.json | Cursor: .cursor/mcp.json
+// Gemini CLI: settings.json | Windsurf: mcp_config.json
+{ "mcpServers": { "scihub": { "command": "uvx", "args": [
+  "--from", "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git", "scihub-mcp" ] } } }
+```
+
+```jsonc
+// VS Code / Copilot: .vscode/mcp.json  (the key is "servers", not "mcpServers")
+{ "servers": { "scihub": { "type": "stdio", "command": "uvx", "args": [
+  "--from", "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git", "scihub-mcp" ] } } }
+```
+
+```toml
+# Codex CLI: ~/.codex/config.toml
+[mcp_servers.scihub]
+command = "uvx"
+args = ["--from", "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git", "scihub-mcp"]
+```
+
+```bash
+# Claude Code
+claude mcp add scihub -- uvx --from "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git" scihub-mcp
+```
+
+ChatGPT and Claude.ai accept only a **remote** server: run `scihub-mcp --transport streamable-http`
+behind a TLS proxy and give the host its HTTPS `/mcp` URL.
+
 ### Global vs Temporary Usage
 
 - **Global Installation**: Use `pip install scihub-cli` or `uv tool install scihub-cli`

@@ -52,3 +52,19 @@ class TestMcpServer:
         tools = asyncio.run(mcp.list_tools())
         names = {t.name for t in tools}
         assert names == {"extrair_dois_csv", "baixar_batch", "fallback_navegador", "verificar"}
+
+    def test_schemas_are_portable(self):
+        """OpenAI/Gemini hosts validate JSON Schema strictly: no unions, no $ref, valid names."""
+        pytest.importorskip("mcp")
+        import asyncio
+        import re
+
+        from scihub_cli.mcp_server import mcp
+
+        for tool in asyncio.run(mcp.list_tools()):
+            assert re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", tool.name), tool.name
+            schema = tool.inputSchema
+            assert schema.get("type") == "object"
+            blob = str(schema)
+            for banned in ("anyOf", "oneOf", "$ref", "patternProperties"):
+                assert banned not in blob, f"{tool.name} uses {banned}"

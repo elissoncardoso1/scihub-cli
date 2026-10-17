@@ -119,7 +119,7 @@ def fallback_navegador(dois: list[str], outdir: str, timeout_s: int = 1800) -> s
 
 
 @mcp.tool()
-def verificar(outdir: str, dois: list[str] | None = None) -> str:
+def verificar(outdir: str, dois: list[str] = None) -> str:
     """Map PDFs in outdir back to DOIs (DOI printed on the first 2 pages). Returns obtained/invalid/missing."""
     try:
         import pymupdf
@@ -132,7 +132,7 @@ def verificar(outdir: str, dois: list[str] | None = None) -> str:
         return re.sub(r"\s+", " ", s).strip()
 
     files = [f for f in os.listdir(outdir) if f.lower().endswith(".pdf")]
-    if dois is None:
+    if not dois:
         dois = [f.rsplit(".", 1)[0].replace("_", "/", 1) for f in files]
     mapeados: dict = {}
     ausentes = list(dois)
@@ -169,7 +169,17 @@ def verificar(outdir: str, dois: list[str] | None = None) -> str:
 
 
 def main() -> None:
-    mcp.run()
+    """Run the MCP server. Transport via --transport or MCP_TRANSPORT (stdio|sse|streamable-http)."""
+    import argparse
+
+    ap = argparse.ArgumentParser(description="scihub-cli MCP server")
+    ap.add_argument(
+        "--transport",
+        default=os.environ.get("MCP_TRANSPORT", "stdio"),
+        choices=["stdio", "sse", "streamable-http"],
+        help="stdio (local hosts) or streamable-http (remote hosts: ChatGPT, Claude.ai)",
+    )
+    mcp.run(transport=ap.parse_args().transport)
 
 
 if __name__ == "__main__":

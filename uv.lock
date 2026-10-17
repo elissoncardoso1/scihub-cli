@@ -1434,7 +1434,7 @@ wheels = [
 
 [[package]]
 name = "scihub-cli"
-version = "0.7.0"
+version = "0.7.1"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -1458,6 +1458,7 @@ mcp = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "mcp" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -1480,6 +1481,7 @@ provides-extras = ["mcp", "browser"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "mcp", specifier = "<2" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "ruff", specifier = ">=0.14.8" },
 ]

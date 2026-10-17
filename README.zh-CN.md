@@ -435,6 +435,37 @@ scihub-mcp                             # stdio MCP 服务器
 
 独立的 `scihub-fallback <list.txt> -o <dir>` 可在 MCP 宿主之外直接运行同样的浏览器兜底。
 
+**两种传输，同一套工具。** `scihub-mcp` 默认走 `stdio`（所有代码/桌面宿主都用它）。加 `--transport streamable-http`（或 `MCP_TRANSPORT=streamable-http`）即可用 HTTP 提供同一服务，供仅支持远程的宿主使用——ChatGPT（开发者模式）与 Claude.ai 连接器。默认监听 `127.0.0.1:8000`、路径 `/mcp`；对外部署需在前面加 TLS 反向代理。
+
+**按宿主配置**（同一服务器，只是文件格式不同，以各宿主最新文档为准）：
+
+```jsonc
+// Claude Desktop: claude_desktop_config.json | Cursor: .cursor/mcp.json
+// Gemini CLI: settings.json | Windsurf: mcp_config.json
+{ "mcpServers": { "scihub": { "command": "uvx", "args": [
+  "--from", "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git", "scihub-mcp" ] } } }
+```
+
+```jsonc
+// VS Code / Copilot: .vscode/mcp.json  （键是 "servers"，不是 "mcpServers"）
+{ "servers": { "scihub": { "type": "stdio", "command": "uvx", "args": [
+  "--from", "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git", "scihub-mcp" ] } } }
+```
+
+```toml
+# Codex CLI: ~/.codex/config.toml
+[mcp_servers.scihub]
+command = "uvx"
+args = ["--from", "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git", "scihub-mcp"]
+```
+
+```bash
+# Claude Code
+claude mcp add scihub -- uvx --from "scihub-cli[mcp] @ git+https://github.com/elissoncardoso1/scihub-cli.git" scihub-mcp
+```
+
+ChatGPT 与 Claude.ai 只接受**远程**服务器：运行 `scihub-mcp --transport streamable-http`，前面加 TLS 代理，然后把 HTTPS 的 `/mcp` URL 交给宿主。
+
 [paper-download-mcp](https://github.com/Oxidane-bot/paper-download-mcp) 是一个独立的 MCP 服务，和本项目共用核心逻辑，并已发布到 PyPI。它可以作为 agent 调用的论文下载工具。先安装 `uv`（可用 `uvx --version` 验证），然后：
 
 ### Claude Code

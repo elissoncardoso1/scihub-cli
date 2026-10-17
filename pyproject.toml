@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scihub-cli"
-version = "0.7.0"
+version = "0.7.1"
 description = "Multi-source academic paper downloader (Sci-Hub, Unpaywall, CORE)"
 authors = [
     {name = "Sci-Hub CLI", email = "example@example.com"},
@@ -65,6 +65,7 @@ build_py = "scihub_cli.build.NoBytecodeBuildPy"
 dev = [
     "ruff>=0.14.8",
     "pytest>=9.0.3",
+    "mcp<2",  # lets the MCP server tool-schema tests run in CI
 ]
 
 [tool.pytest.ini_options]
