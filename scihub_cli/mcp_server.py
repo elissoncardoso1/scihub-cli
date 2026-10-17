@@ -179,7 +179,21 @@ def main() -> None:
         choices=["stdio", "sse", "streamable-http"],
         help="stdio (local hosts) or streamable-http (remote hosts: ChatGPT, Claude.ai)",
     )
-    mcp.run(transport=ap.parse_args().transport)
+    ap.add_argument(
+        "--host",
+        default=os.environ.get("MCP_HOST", "127.0.0.1"),
+        help="bind address for streamable-http (default 127.0.0.1; use 0.0.0.0 to expose)",
+    )
+    ap.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("MCP_PORT", "8000")),
+        help="port for streamable-http (default 8000)",
+    )
+    args = ap.parse_args()
+    mcp.settings.host = args.host
+    mcp.settings.port = args.port
+    mcp.run(transport=args.transport)
 
 
 if __name__ == "__main__":

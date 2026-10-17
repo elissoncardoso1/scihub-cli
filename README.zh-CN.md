@@ -435,7 +435,7 @@ scihub-mcp                             # stdio MCP 服务器
 
 独立的 `scihub-fallback <list.txt> -o <dir>` 可在 MCP 宿主之外直接运行同样的浏览器兜底。
 
-**两种传输，同一套工具。** `scihub-mcp` 默认走 `stdio`（所有代码/桌面宿主都用它）。加 `--transport streamable-http`（或 `MCP_TRANSPORT=streamable-http`）即可用 HTTP 提供同一服务，供仅支持远程的宿主使用——ChatGPT（开发者模式）与 Claude.ai 连接器。默认监听 `127.0.0.1:8000`、路径 `/mcp`；对外部署需在前面加 TLS 反向代理。
+**两种传输，同一套工具。** `scihub-mcp` 默认走 `stdio`（所有代码/桌面宿主都用它）。加 `--transport streamable-http`（或 `MCP_TRANSPORT=streamable-http`）即可用 HTTP 提供同一服务，供仅支持远程的宿主使用——ChatGPT（开发者模式）与 Claude.ai 连接器。默认监听 `127.0.0.1:8000`、路径 `/mcp`；用 `--host/--port`（或 `MCP_HOST`/`MCP_PORT`，如 `--host 0.0.0.0` 对外暴露）修改；对外部署需在前面加 TLS 反向代理。
 
 **按宿主配置**（同一服务器，只是文件格式不同，以各宿主最新文档为准）：
 

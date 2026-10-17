@@ -215,8 +215,9 @@ The standalone CLI (`scihub-fallback`) runs the same browser fallback outside MC
 **Two transports, same tools.** `scihub-mcp` speaks `stdio` by default (the transport every
 code/desktop host uses). Add `--transport streamable-http` (or `MCP_TRANSPORT=streamable-http`)
 to serve the same server over HTTP for remote-only hosts — ChatGPT (developer mode) and the
-Claude.ai connectors. Default bind is `127.0.0.1:8000` at path `/mcp`; put a TLS reverse proxy
-in front for anything public.
+Claude.ai connectors. Default bind is `127.0.0.1:8000` at path `/mcp`; change it with
+`--host/--port` (or `MCP_HOST`/`MCP_PORT`, e.g. `--host 0.0.0.0` to expose), and put a TLS
+reverse proxy in front for anything public.
 
 **Per-host config** (same server, different file format — check each host's current docs):
 
